@@ -2,7 +2,8 @@ import OpenAI from "openai";
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
-type AnalyzeRequest = { submissionId: string };
+type AnalyzeRequest = { submissionId: string; market?: string };
+
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -59,32 +60,38 @@ export async function POST(req: Request) {
     }
 
     const script = submission.script_text as string;
+// STEP B: Load market prompt preset
+const market = body.market || "d2d_pest";
+
+const { data: preset, error: presetErr } = await supabaseAdmin
+  .from("prompt_presets")
+  .select("instructions, rules")
+  .eq("market_slug", market)
+  .single();
+
+if (presetErr || !preset) {
+  return NextResponse.json(
+    { error: "Missing prompt preset", market },
+    { status: 500 }
+  );
+}
+
 
     // 3) Call OpenAI and force JSON schema via Responses API text.format
     const resp = await openai.responses.create({
       model: "gpt-4.1-mini",
-      instructions:
-        "You are an elite sales coach specializing in objection handling. Return valid JSON only. No markdown. No commentary.",
-      input: `Analyze the rep's objection response script and return a JSON object.
+     instructions: preset.instructions,
 
-Schema:
-{
-  "score": number,
-  "objection_type": string,
-  "issues": string[],
-  "rewrite": string,
-  "followups": string[],
-  "drill": string
-}
+input: `Return ONLY JSON that matches the required schema.
 
-Rules:
-- score: 0–100
-- issues: max 3 items
-- followups: exactly 2 questions
-- rewrite: concise, confident, 2–4 lines
+Market rules:
+${preset.rules}
 
-Rep script:
+Rep response:
 """${script}"""`,
+
+
+
       text: {
         format: {
           type: "json_schema",
