@@ -1,22 +1,40 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 
 export default function Home() {
-  const [status, setStatus] = useState("Checking Supabase...");
+  const [email, setEmail] = useState<string | null>(null);
+
+  async function refreshUser() {
+    const { data } = await supabase.auth.getUser();
+    setEmail(data.user?.email ?? null);
+  }
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data, error }) => {
-      if (error) setStatus("ERROR: " + error.message);
-      else setStatus("Connected ✅ session=" + (data.session ? "yes" : "no"));
-    });
+    refreshUser();
   }, []);
+
+  async function signOut() {
+    await supabase.auth.signOut();
+    await refreshUser();
+  }
 
   return (
     <main style={{ padding: 24 }}>
       <h1>PRAXIS</h1>
-      <p>{status}</p>
+
+      {email ? (
+        <>
+          <p>Logged in as: {email}</p>
+          <button onClick={signOut}>Sign out</button>
+        </>
+      ) : (
+        <p>
+          <Link href="/login">Go to login</Link>
+        </p>
+      )}
     </main>
   );
 }
