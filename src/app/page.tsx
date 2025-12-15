@@ -28,6 +28,9 @@ export default function Home() {
       {email ? (
         <>
           <p>Logged in as: {email}</p>
+     <p>
+      <a href="/projects">Go to Projects</a>
+    </p>
           <button onClick={signOut}>Sign out</button>
         </>
       ) : (
