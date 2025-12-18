@@ -9,8 +9,6 @@ type Body = {
   repResponse: string;
 };
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-
 const supabaseAuth = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
@@ -23,6 +21,17 @@ const supabaseAdmin = createClient(
 );
 
 export async function POST(req: Request) {
+    if (!process.env.OPENAI_API_KEY) {
+    return NextResponse.json(
+      { ok: false, error: "OPENAI_API_KEY not set" },
+      { status: 500 }
+    );
+  }
+
+  const openai = new OpenAI({
+    apiKey: process.env.OPENAI_API_KEY,
+  });
+
   try {
     const authHeader = req.headers.get("authorization");
     const token = authHeader?.startsWith("Bearer ") ? authHeader.slice("Bearer ".length) : null;

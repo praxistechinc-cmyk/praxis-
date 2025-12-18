@@ -10,6 +10,13 @@ const BodySchema = z.object({
 });
 
 export async function POST(req: Request) {
+    if (!process.env.OPENAI_API_KEY) {
+    return NextResponse.json(
+      { ok: false, error: "OPENAI_API_KEY not set" },
+      { status: 500 }
+    );
+  }
+
   try {
     const body = BodySchema.parse(await req.json());
     console.log("GRADE REQUEST:", body);

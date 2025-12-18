@@ -4,9 +4,6 @@ import { createClient } from "@supabase/supabase-js";
 
 type AnalyzeRequest = { submissionId: string; market?: string };
 
-
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SUPABASE_ANON = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 const SUPABASE_SERVICE = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -17,6 +14,17 @@ const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE);
 const supabaseAuth = createClient(SUPABASE_URL, SUPABASE_ANON);
 
 export async function POST(req: Request) {
+    if (!process.env.OPENAI_API_KEY) {
+    return NextResponse.json(
+      { ok: false, error: "OPENAI_API_KEY not set" },
+      { status: 500 }
+    );
+  }
+
+  const openai = new OpenAI({
+    apiKey: process.env.OPENAI_API_KEY,
+  });
+
   try {
     const authHeader = req.headers.get("authorization") || "";
     const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
