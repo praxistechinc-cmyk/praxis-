@@ -9,44 +9,59 @@ type Body = {
   repResponse: string;
 };
 
-const supabaseAuth = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
-
-// Server-side admin for DB reads
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
-
 export async function POST(req: Request) {
-    if (!process.env.OPENAI_API_KEY) {
+  // --- Env guards (runtime only) ---
+  const openaiKey = process.env.OPENAI_API_KEY;
+  if (!openaiKey) {
     return NextResponse.json(
       { ok: false, error: "OPENAI_API_KEY not set" },
       { status: 500 }
     );
   }
 
-  const openai = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY,
-  });
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const service = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  if (!url || !anon || !service) {
+    return NextResponse.json(
+      { ok: false, error: "Supabase env vars not set" },
+      { status: 500 }
+    );
+  }
+
+  // --- Clients must be instantiated inside handler ---
+  const openai = new OpenAI({ apiKey: openaiKey });
+  const supabaseAuth = createClient(url, anon);
+  const supabaseAdmin = createClient(url, service);
 
   try {
     const authHeader = req.headers.get("authorization");
-    const token = authHeader?.startsWith("Bearer ") ? authHeader.slice("Bearer ".length) : null;
+    const token =
+      authHeader?.startsWith("Bearer ")
+        ? authHeader.slice("Bearer ".length)
+        : null;
+
     if (!token) {
-      return NextResponse.json({ error: "Missing Authorization Bearer token" }, { status: 401 });
+      return NextResponse.json(
+        { error: "Missing Authorization Bearer token" },
+        { status: 401 }
+      );
     }
 
     const body = (await req.json()) as Body;
     if (!body?.repResponse || !body?.objectionText) {
-      return NextResponse.json({ error: "Missing repResponse or objectionText" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Missing repResponse or objectionText" },
+        { status: 400 }
+      );
     }
 
     // Verify user
-    const { data: userRes, error: userErr } = await supabaseAuth.auth.getUser(token);
-    if (userErr || !userRes.user) {
+    const { data: userRes, error: userErr } =
+      await supabaseAuth.auth.getUser(token);
+
+    if (userErr || !userRes?.user) {
       return NextResponse.json({ error: "Invalid token" }, { status: 401 });
     }
 
@@ -60,7 +75,10 @@ export async function POST(req: Request) {
       .single();
 
     if (presetErr || !preset) {
-      return NextResponse.json({ error: "Missing prompt preset", market }, { status: 500 });
+      return NextResponse.json(
+        { error: "Missing prompt preset", market },
+        { status: 500 }
+      );
     }
 
     // Force schema output
@@ -92,10 +110,22 @@ Return ONLY JSON matching the required schema.`,
               objection_type: { type: "string" },
               issues: { type: "array", items: { type: "string" }, maxItems: 3 },
               rewrite: { type: "string" },
-              followups: { type: "array", items: { type: "string" }, minItems: 2, maxItems: 2 },
+              followups: {
+                type: "array",
+                items: { type: "string" },
+                minItems: 2,
+                maxItems: 2,
+              },
               drill: { type: "string" },
             },
-            required: ["score", "objection_type", "issues", "rewrite", "followups", "drill"],
+            required: [
+              "score",
+              "objection_type",
+              "issues",
+              "rewrite",
+              "followups",
+              "drill",
+            ],
           },
         },
       },
@@ -106,11 +136,17 @@ Return ONLY JSON matching the required schema.`,
     try {
       analysis = JSON.parse(raw);
     } catch {
-      return NextResponse.json({ error: "Model returned non-JSON", raw }, { status: 500 });
+      return NextResponse.json(
+        { error: "Model returned non-JSON", raw },
+        { status: 500 }
+      );
     }
 
     return NextResponse.json({ ok: true, analysis });
   } catch (e: any) {
-    return NextResponse.json({ error: e?.message ?? "Unknown error" }, { status: 500 });
+    return NextResponse.json(
+      { error: e?.message ?? "Unknown error" },
+      { status: 500 }
+    );
   }
 }
