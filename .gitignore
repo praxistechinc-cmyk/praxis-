@@ -58,3 +58,7 @@ logs/
 # temp files
 .tmp/
 temp/
+
+# accidental terminal junk
+next
+praxis@0.1.0

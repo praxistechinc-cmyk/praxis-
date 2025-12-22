@@ -47,7 +47,7 @@ export default async function ManagerDashboard({
         ) / 10;
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="space-y-6">
       <div className="flex items-end justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold">Manager Dashboard</h1>

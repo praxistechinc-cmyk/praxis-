@@ -3,6 +3,8 @@
 import { useMemo, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
+import { authedFetch } from "@/lib/authedFetch";
+
 
 type BehaviorChecks = {
   acknowledged_objection?: boolean;
@@ -104,7 +106,7 @@ export default function PracticePage() {
   );
 
   async function postAttempt(payload: any) {
-    await fetch(`/api/teams/${projectId}/attempts`, {
+    await authedFetch(`/api/teams/${projectId}/attempts`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
@@ -112,12 +114,12 @@ export default function PracticePage() {
   }
 
   async function postSession(payload: any) {
-    await fetch(`/api/teams/${projectId}/sessions`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-  }
+  await authedFetch(`/api/teams/${projectId}/sessions`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+}
 
   async function gradeRound() {
     const trimmed = repResponse.trim();

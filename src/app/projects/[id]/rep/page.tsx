@@ -36,7 +36,7 @@ export default async function RepDashboard({
   const avgScore7d = me?.avgScore ?? 0;
 
   return (
-    <div className="p-6 space-y-6 max-w-4xl">
+    <div className="space-y-6 max-w-4xl">
       {/* Header */}
       <div className="flex items-end justify-between gap-4">
         <div>
