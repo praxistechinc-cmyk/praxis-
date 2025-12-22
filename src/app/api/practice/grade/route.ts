@@ -10,6 +10,17 @@ type Body = {
 };
 
 export async function POST(req: Request) {
+  // === ENV DIAGNOSTICS (TEMPORARY) ===
+  console.log("==== PRACTICE ROUTE ENV CHECK START ====");
+  console.log("OPENAI_API_KEY exists:", !!process.env.OPENAI_API_KEY);
+  console.log(
+    "OPENAI_API_KEY prefix:",
+    process.env.OPENAI_API_KEY?.slice(0, 5)
+  );
+  console.log("NODE_ENV:", process.env.NODE_ENV);
+  console.log("==== PRACTICE ROUTE ENV CHECK END ====");
+  // ==================================
+
   // --- Env guards (runtime only) ---
   const openaiKey = process.env.OPENAI_API_KEY;
   if (!openaiKey) {
@@ -30,7 +41,6 @@ export async function POST(req: Request) {
     );
   }
 
-  // --- Clients must be instantiated inside handler ---
   const openai = new OpenAI({ apiKey: openaiKey });
   const supabaseAuth = createClient(url, anon);
   const supabaseAdmin = createClient(url, service);
@@ -57,7 +67,6 @@ export async function POST(req: Request) {
       );
     }
 
-    // Verify user
     const { data: userRes, error: userErr } =
       await supabaseAuth.auth.getUser(token);
 
@@ -67,7 +76,6 @@ export async function POST(req: Request) {
 
     const market = body.market || "d2d_pest";
 
-    // Load prompt preset
     const { data: preset, error: presetErr } = await supabaseAdmin
       .from("prompt_presets")
       .select("instructions, rules")
@@ -81,7 +89,6 @@ export async function POST(req: Request) {
       );
     }
 
-    // Force schema output
     const resp = await openai.responses.create({
       model: "gpt-4.1-mini",
       instructions: preset.instructions,
@@ -133,6 +140,7 @@ Return ONLY JSON matching the required schema.`,
 
     const raw = resp.output_text?.trim() || "";
     let analysis: any;
+
     try {
       analysis = JSON.parse(raw);
     } catch {

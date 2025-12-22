@@ -10,10 +10,21 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [msg, setMsg] = useState("");
 
+  // === LOGIN PAGE ENV DIAGNOSTICS (TEMPORARY) ===
+  console.log("LOGIN PAGE SUPABASE URL:", process.env.NEXT_PUBLIC_SUPABASE_URL);
+  console.log(
+    "LOGIN PAGE ANON PREFIX:",
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.slice(0, 20)
+  );
+  console.log(
+    "LOGIN PAGE ANON LENGTH:",
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.length
+  );
+  // ============================================
+
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
       if (data.session) router.push("/");
-;
     });
   }, [router]);
 
@@ -26,10 +37,12 @@ export default function LoginPage() {
 
   async function signIn() {
     setMsg("");
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
     if (error) setMsg("ERROR: " + error.message);
     else router.push("/");
-;
   }
 
   return (

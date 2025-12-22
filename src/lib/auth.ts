@@ -1,5 +1,3 @@
-import { cookies } from "next/headers";
-import { createServerClient } from "@supabase/ssr";
 import { createClient } from "@supabase/supabase-js";
 
 function env(name: string): string {
@@ -8,43 +6,34 @@ function env(name: string): string {
   return v;
 }
 
-export async function supabaseServer() {
-  const store = await cookies();
-
-  // Make the cookie adapter match whatever overload TS picks.
-  const cookieAdapter = {
-    getAll() {
-      return store.getAll().map((c) => ({ name: c.name, value: c.value }));
-    },
-    setAll(cookiesToSet: any[]) {
-      for (const c of cookiesToSet) {
-        // c.options comes from Supabase types (SerializeOptions-ish), including sameSite: false sometimes.
-        store.set({ name: c.name, value: c.value, ...(c.options || {}) } as any);
-      }
-    },
-  } as any;
-
-  return createServerClient(
-    env("NEXT_PUBLIC_SUPABASE_URL"),
-    env("NEXT_PUBLIC_SUPABASE_ANON_KEY"),
-    {
-      cookies: cookieAdapter,
-    } as any
-  );
-}
-
+/**
+ * Server-only admin client (service role). Never use in the browser.
+ */
 export function supabaseAdmin() {
-  return createClient(
-    env("NEXT_PUBLIC_SUPABASE_URL"),
-    env("SUPABASE_SERVICE_ROLE_KEY"),
-    { auth: { persistSession: false } }
-  );
+  return createClient(env("NEXT_PUBLIC_SUPABASE_URL"), env("SUPABASE_SERVICE_ROLE_KEY"), {
+    auth: { persistSession: false },
+  });
 }
 
-export async function getUserId(): Promise<string | null> {
-  const supabase = await supabaseServer();
-  const { data, error } = await supabase.auth.getUser();
+/**
+ * Reads Authorization: Bearer <token> and returns the user id, or null.
+ * Use this in Next.js route handlers.
+ */
+export async function getUserId(req: Request): Promise<string | null> {
+  const url = env("NEXT_PUBLIC_SUPABASE_URL");
+  const anon = env("NEXT_PUBLIC_SUPABASE_ANON_KEY");
+
+  const authHeader = req.headers.get("authorization");
+  const token =
+    authHeader?.startsWith("Bearer ")
+      ? authHeader.slice("Bearer ".length)
+      : null;
+
+  if (!token) return null;
+
+  const supabase = createClient(url, anon);
+  const { data, error } = await supabase.auth.getUser(token);
+
   if (error) return null;
   return data.user?.id ?? null;
 }
-

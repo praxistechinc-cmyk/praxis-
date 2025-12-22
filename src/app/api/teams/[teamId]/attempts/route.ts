@@ -1,33 +1,78 @@
 import { NextResponse } from "next/server";
 import { getUserId } from "@/lib/auth";
-import { readDb, writeDb, uid, type Attempt } from "@/lib/store";
+import { readDb, writeDb, uid } from "@/lib/store";
 
-export async function POST(req: Request, { params }: { params: Promise<{ teamId: string }> }) {
-  const { teamId } = await params;
-  const userId = await getUserId();
+export async function GET(
+  req: Request,
+  { params }: { params: { teamId: string } }
+) {
+  const teamId = String(params.teamId);
+
+  const userId = await getUserId(req);
+  if (!userId) {
+    return NextResponse.json(
+      { ok: false, error: "Unauthorized" },
+      { status: 401 }
+    );
+  }
+
   const db = await readDb();
 
-  const me = db.members.find(m => m.teamId === teamId && m.userId === userId);
-  if (!me) return NextResponse.json({ ok: false, error: "Not a member" }, { status: 403 });
-  if (me.role !== "rep") return NextResponse.json({ ok: false, error: "Reps only" }, { status: 403 });
+  const me = db.members.find((m) => m.teamId === teamId && m.userId === userId);
+  if (!me) {
+    return NextResponse.json(
+      { ok: false, error: "Not a member" },
+      { status: 403 }
+    );
+  }
 
-  const body = await req.json();
+  // Managers see all attempts; reps see only their own
+  const attempts =
+    me.role === "manager"
+      ? db.attempts?.filter((a: any) => a.teamId === teamId) ?? []
+      : db.attempts?.filter((a: any) => a.teamId === teamId && a.repUserId === userId) ?? [];
 
-  const a: Attempt = {
+  return NextResponse.json({ ok: true, attempts });
+}
+
+export async function POST(
+  req: Request,
+  { params }: { params: { teamId: string } }
+) {
+  const teamId = String(params.teamId);
+
+  const userId = await getUserId(req);
+  if (!userId) {
+    return NextResponse.json(
+      { ok: false, error: "Unauthorized" },
+      { status: 401 }
+    );
+  }
+
+  const db = await readDb();
+
+  const me = db.members.find((m) => m.teamId === teamId && m.userId === userId);
+  if (!me) {
+    return NextResponse.json(
+      { ok: false, error: "Not a member" },
+      { status: 403 }
+    );
+  }
+
+  const body = await req.json().catch(() => ({}));
+
+  const attempt = {
     id: uid("att"),
     teamId,
     repUserId: userId,
-    repName: String(body?.repName ?? me.displayName ?? "Rep"),
-    createdAt: String(body?.createdAt ?? new Date().toISOString()),
-    market: String(body?.market ?? "d2d_pest"),
-    scenarioId: String(body?.scenarioId ?? "unknown"),
-    score: Number(body?.score ?? 0),
-    failTags: Array.isArray(body?.failTags) ? body.failTags : [],
-    durationSec: Number(body?.durationSec ?? 0),
+    createdAt: new Date().toISOString(),
+    ...(body as any),
   };
 
-  db.attempts.push(a);
+  (db as any).attempts = Array.isArray((db as any).attempts) ? (db as any).attempts : [];
+  (db as any).attempts.push(attempt);
+
   await writeDb(db);
 
-  return NextResponse.json({ ok: true, attempt: a });
+  return NextResponse.json({ ok: true, attempt });
 }

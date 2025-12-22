@@ -1,17 +1,33 @@
 import { NextResponse } from "next/server";
 import { getUserId } from "@/lib/auth";
-import { readDb } from "@/lib/store";
+import { readDb, type TeamMember } from "@/lib/store";
 
-export async function GET(_: Request, { params }: { params: Promise<{ teamId: string }> }) {
-  const { teamId } = await params;
-  const userId = await getUserId();
+export async function GET(
+  req: Request,
+  { params }: { params: { teamId: string } }
+) {
+  const teamId = String(params.teamId);
+
+  const userId = await getUserId(req);
+  if (!userId) {
+    return NextResponse.json(
+      { ok: false, error: "Unauthorized" },
+      { status: 401 }
+    );
+  }
 
   const db = await readDb();
-  const member = db.members.find(m => m.teamId === teamId && m.userId === userId);
-  if (!member) return NextResponse.json({ ok: false, error: "Not a member" }, { status: 403 });
 
-  const team = db.teams.find(t => t.id === teamId);
-  if (!team) return NextResponse.json({ ok: false, error: "Team not found" }, { status: 404 });
+  const member = db.members.find(
+    (m: TeamMember) => m.teamId === teamId && m.userId === userId
+  );
 
-  return NextResponse.json({ ok: true, team, member });
+  if (!member) {
+    return NextResponse.json(
+      { ok: false, error: "Not a member" },
+      { status: 403 }
+    );
+  }
+
+  return NextResponse.json({ ok: true, member });
 }
